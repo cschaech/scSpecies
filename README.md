@@ -41,4 +41,6 @@ Follow these steps to set up your environment and start using `scSpecies`:
    ```bash
    pip install -r requirements.txt
 
+## Demo usage
+
 To get started with `scSpecies`, please refer to the `tutorial.ipynb` Jupyter notebook. This tutorial provides a comprehensive guide on how to use the tool, including data preparation, model training, and analysis.  
