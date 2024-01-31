@@ -19,8 +19,11 @@ class create_mdata():
                  context_gene_naming_convention: str = 'mouse', 
                  context_n_top_genes: Union[int, None] = 4000,                   
                  min_non_zero_genes: float = 0.025, 
-                 min_cell_type_size: int = 20,     
-                 min_batch_size: int = 20,                
+                 max_genes_expr: float = 1,                                   
+                 min_cell_type_size: Union[int, None] = 20,   
+                 max_cell_type_size: Union[int, None] = None,                   
+                 min_batch_size: int = 20, 
+                 max_dataset_size: Union[int, None] = None,   
                  ): 
         """
         Initializes and configures a multi-dataset analysis (mdata) object for scPecies.
@@ -51,11 +54,6 @@ class create_mdata():
         encode_batch_labels: Encodes and filters experimental batch effects.
         subset_to_highly_variable_genes: Selects and retains highly variable genes in the dataset.
         """
-
-        self.min_non_zero_genes = min_non_zero_genes
-        self.min_cell_type_size = min_cell_type_size  
-        self.min_batch_size = min_batch_size   
-
         self.create_translation_dict()
 
         self.context_dataset_name = context_dataset_name
@@ -64,16 +62,14 @@ class create_mdata():
         context_adata.uns['dataset_name'] = context_dataset_name
         context_adata.uns['gene_naming_convention'] = context_gene_naming_convention
 
-        context_adata = self.encode_batch_labels(context_adata, self.min_batch_size)
+        context_adata = self.encode_batch_labels(context_adata, min_batch_size)
         context_adata = self.compute_library_prior_params(context_adata)        
         context_adata = self.translate_gene_names(context_adata)
 
-
+        context_adata = self.filter_cells_and_genes(context_adata, 0, min_cell_type_size, max_cell_type_size, max_genes_expr, None)
         if context_n_top_genes != None:
             context_adata = self.subset_to_highly_variable_genes(context_adata, context_n_top_genes)
-
-        context_adata = self.filter_cells(context_adata, self.min_non_zero_genes, self.min_cell_type_size)
-
+        context_adata = self.filter_cells_and_genes(context_adata, min_non_zero_genes, min_cell_type_size, max_cell_type_size, 1, max_dataset_size)
         self.dataset_collection = {context_adata.uns['dataset_name']: context_adata}
         print('Done!\n'+'-'*100)
 
@@ -106,7 +102,13 @@ class create_mdata():
                  target_n_top_genes: Union[int, None] = 4000,                  
                  neighbors: int = 250,
                  metric: str = 'cosine',
-                 compute_log1p: bool = True,                                                 
+                 compute_log1p: bool = True,   
+                 min_non_zero_genes: float = 0.025, 
+                 max_genes_expr: float = 1,                                   
+                 min_cell_type_size: Union[int, None] = 20,   
+                 max_cell_type_size: Union[int, None] = None,                   
+                 min_batch_size: int = 20, 
+                 max_dataset_size: Union[int, None] = None                       
                  ):   
         """
         Prepares and processes a target AnnData object for analysis.
@@ -135,14 +137,14 @@ class create_mdata():
         target_adata.uns['gene_naming_convention'] = target_gene_naming_convention
 
 
-        target_adata = self.encode_batch_labels(target_adata, self.min_batch_size)
+        target_adata = self.encode_batch_labels(target_adata, min_batch_size)
         target_adata = self.compute_library_prior_params(target_adata)           
         target_adata = self.translate_gene_names(target_adata)
 
+        target_adata = self.filter_cells_and_genes(target_adata, 0, min_cell_type_size, max_cell_type_size, max_genes_expr, None)
         if target_n_top_genes != None:
             target_adata = self.subset_to_highly_variable_genes(target_adata, target_n_top_genes)
-
-        target_adata = self.filter_cells(target_adata, self.min_non_zero_genes, self.min_cell_type_size)
+        target_adata = self.filter_cells_and_genes(target_adata, min_non_zero_genes, min_cell_type_size, max_cell_type_size, 1, max_dataset_size)
 
         if target_gene_naming_convention == 'human':
             context_gene_names = self.dataset_collection[self.context_dataset_name].var['human_gene_names'].to_numpy()
@@ -207,10 +209,13 @@ class create_mdata():
 
 
     @staticmethod
-    def filter_cells(
+    def filter_cells_and_genes(
                      adata: ad.AnnData, 
                      min_non_zero_genes: float, 
-                     min_cell_type_size: int
+                     min_cell_type_size: int,
+                     max_cell_type_size: Union[int, None],
+                     max_genes_expr: float,
+                     max_dataset_size: Union[int, None],
                      ):
         """
         Filters cells in an AnnData object based on gene expression and cell type size criteria.
@@ -232,14 +237,32 @@ class create_mdata():
         """
 
         old_n_obs = adata.n_obs
+        old_n_vars = adata.n_vars        
         sc.pp.filter_cells(adata, min_genes=adata.n_vars*min_non_zero_genes)
+        sc.pp.filter_genes(adata, max_cells=adata.n_obs*max_genes_expr)
 
         if adata.uns['dataset_cell_key'] != None:
             cell_type_counts = adata.obs[adata.uns['dataset_cell_key']].value_counts()>min_cell_type_size
             cell_type_counts = cell_type_counts[cell_type_counts==True].index
             adata = adata[adata.obs[adata.uns['dataset_cell_key']].isin(cell_type_counts)]    
 
-        print('Filtering cells. Kept {}, removed {}.'.format(str(adata.n_obs), str(int(old_n_obs-adata.n_obs))))
+        if adata.uns['dataset_cell_key'] != None and max_cell_type_size != None:
+            unique_cell_types = adata.obs[adata.uns['dataset_cell_key']].unique()
+            samples_per_type = max_cell_type_size // len(unique_cell_types)
+            selected_indices = []
+
+            for cell_type in unique_cell_types:
+                indices = np.where(adata.obs[adata.uns['dataset_cell_key']] == cell_type)[0]
+                n_samples = min(len(indices), samples_per_type)
+                selected_indices.extend(np.random.choice(indices, n_samples, replace=False))
+
+            adata = adata[selected_indices]  
+
+        if max_dataset_size != None:
+            adata = adata[np.random.choice(np.arange(adata.n_obs), max_dataset_size, replace=False)]  
+
+        print('Filtering cells and genes. Kept {} cells, removed {}. Kept {} genes, removed {}.'.format(
+            str(adata.n_obs), str(int(old_n_obs-adata.n_obs)), str(adata.n_vars), str(int(old_n_vars-adata.n_vars))))
 
         return adata
     @staticmethod
@@ -381,7 +404,7 @@ class create_mdata():
 
         else:
             cell_types = adata.obs[cell_key].cat.categories.to_numpy()
-            batches = {c: adata[adata.obs[cell_key] == c].obs[batch_key].value_counts() > 3 for c in cell_types}
+            batches = {c : adata[adata.obs[cell_key] == c].obs[batch_key].value_counts() > 3 for c in cell_types}
             batches = {c : batches[c][batches[c]].index.to_numpy() for c in cell_types}
             batches = {c : enc.transform(batches[c].reshape(-1, 1)).toarray().astype(np.float32)  for c in cell_types}
             batches['unknown'] = enc.transform(np.unique(batch_labels).reshape(-1, 1)).toarray().astype(np.float32)

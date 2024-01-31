@@ -13,6 +13,7 @@ import pickle
 from typing import Union, List
 from collections import Counter
 
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import fowlkes_mallows_score, adjusted_rand_score, balanced_accuracy_score, adjusted_mutual_info_score
 from sklearn.neighbors import NearestNeighbors
 from scipy.stats import chi2
@@ -495,86 +496,13 @@ class make_act_bounded(nn.Module):
         x = self.act(x)
         return torch.clamp(x, min=self.min, max=self.max)
 
-class scPecies():
-    """
-    The scPecies class implements a model for aligning the latent representations of context and target datasets, 
-    primarily used for cross-species or cross-condition analysis. This class facilitates 
-    the integration of single-cell data from diverse sources, offering tools for training, evaluating, and 
-    predicting based on single-cell variational inference models.
-
-    Parameters:
-    device (str): The device (e.g., 'cpu' or 'cuda') on which the tensors should be allocated.
-    mdata (mu.MuData): The mdata object containing context and target datasets. Has to be created by the provided create_mdata class.
-    random_seed (int): Random seed for reproducibility.
-    hidden_dims_lense (List of ints > 0): List of integers specifying the hidden neuron sizes for the inner encoder model.
-    latent_dim (int > 0): Dimensionality of the latent space.
-    k_neigh (int > 0): Number of nearest neighbors for the alignment process.
-    top_percent (0 <= float <= 100): The top percentage of cells with high NNS agreement to consider during alignment.
-    eta_start (float >= 0): Weighting of the alignment term at the beginning of the training.
-    eta_max (float >= 0 and >= eta_start): Weighting of the alignment term after eta_epochs_raise epochs.
-    eta_epochs_raise (int >= 0): Specifies how many epochs are required to reach eta_max.      
-
-    The following parameters can be set for the context and target model by setting 'context_' or 'target_' before the variable name.
-
-    dataset_key (str): Modality keys for context and target datasets.
-    optimizer (torch.optim.Optimizer): Optimizer for the training procedure.
-    hidden_dims_enc_outer (List of ints > 0): List of integers specifying the hidden neuron sizes for the outer encoder model.
-    hidden_dims_l_enc (List of ints > 0): List of integers specifying the hidden neuron sizes for the library encoder model.
-    hidden_dims_dec (List of ints > 0): List of integers specifying the hidden neuron sizes for the decoder model.
-    layer_order (list): A list of tuples or strings specifying the operations to be applied. Supported operations are
-                        'linear', 'batch_norm', 'layer_norm', 'act' (activation), and 'dropout'.
-                        For 'dropout' and 'act', a tuple must be provided with the operation name and its parameter.
-                        ('dropout', dropout_rate), e.g.: ('dropout', 0.1)
-                        For 'act', an optional third element (tuple) can be provided to specify activation clipping.
-                        ('act', activation_function, [a, b]), e.g.: ('act', torch.nn.ReLU(), [0, 7]), ('act', 'PReLU', [-6, 6]) or ('act', torch.nn.Tanh())
-
-                        The operations are chained in the order they appear in the list. Omit any operation that is unwanted. E.g.:
-                        ['linear', 'layer_norm', ('act', nn.ReLU(), [0, 6]), ('dropout', 0.1)]
-                        ['linear', ('act', 'PReLU', [-6, 6]), 'batch_norm']
-                        ['linear', ('act', torch.nn.Tanh())]
-    b_s (int > 0): Batch size during training.
-    data_distr ('zinb' or 'nb'): The type of distribution of the data.
-    dispersion ('dataset', 'batch', or 'cell'): How to compute the dispersion parameter.
-                    'dataset' keeps the dispersion of a gene constant for the whole dataset.
-                    'batch' keeps the dispersion of a gene constat for every cell of a batch
-                    'cell' allows for individual dispersion for every cell.
-    beta_start (float >= 0): Weighting of the KL terms at the beginning of the training.
-    beta_max (float >= 0 and >= beta_start):  Weighting of the KL terms after beta_epochs_raise epochs.
-    beta_epochs_raise (int >= 0): Specifies how many epochs are required to reach beta_max.    
-
-    Class methods:
-
-    initialize: Defines the neural network models according to the specified parameters.
-    save_to_directory: Saves the model parameters.
-    save_mdata: Saves the changes to self.mdata
-    load_from_directory: Loads the model parameters.
-    pred_labels_nns_aligned_latent_space: Predicts cell labels for the target dataset with the aligned latent representations.
-    pred_labels_nns_hom_genes: Predicts cell labels for the target dataset with data level NNS.
-    compute_metrics: Computes the label transfer accuracy.
-    compute_logfold_change: Computes the logfold change between homologous genes.
-    eval_context: Evaluates the scPecies context model.
-    eval_target: Evaluates the scPecies target model.
-    train_context: Trains the scPecies context model.
-    train_target: Trains the scPecies target model.
-
-    Helpers for class methods:
-
-    most_frequent: Helper for pred_labels_nns_aligned_latent_space.
-    create_directory: Helper for save_to_directory and load_from_directory.
-    compare_elements: Helper for load_from_directory.
-    compare_lists: Helper for load_from_directory.
-    average_slices: Helper for compute_logfold_change.
-    filter_outliers: Helper for compute_logfold_change.
-    update_param: Helper for train_context and train_target
-
-    Example Usage:  scPecies_instance = scPecies('cuda', mdata, save_path)
-    """
-
+class scSpecies():
+ 
     def __init__(self, 
                  device: str,
                  mdata: mu.MuData, 
                  directory: str,  
-                 random_seed: int = 1234, 
+                 random_seed: int = 369963, 
 
                  context_dataset_key: str = 'mouse', 
                  target_dataset_key: str = 'human',      
@@ -593,8 +521,8 @@ class scPecies():
                  context_hidden_dims_dec: List[int] = [200, 300],
                  target_hidden_dims_dec: List[int] = [200, 300],
 
-                 context_layer_order: list = ['linear', 'layer_norm', ('act', nn.ReLU(), [-6, 6]), ('dropout', 0.1)],
-                 target_layer_order: list = ['linear', 'layer_norm', ('act', nn.ReLU(), [-6, 6]), ('dropout', 0.1)],
+                 context_layer_order: list = ['linear', 'layer_norm', ('act', nn.ReLU(), [0, 6]), ('dropout', 0.1)],
+                 target_layer_order: list = ['linear', 'layer_norm', ('act', nn.ReLU(), [0, 6]), ('dropout', 0.1)],
 
                  context_b_s: int = 128,
                  target_b_s: int = 128,          
@@ -607,6 +535,7 @@ class scPecies():
                  context_dispersion: str = 'batch',
                  target_dispersion: str = 'batch',
 
+                 alignment: int = 'inter',
                  k_neigh: int = 25,
                  top_percent: float = 20,
 
@@ -632,6 +561,7 @@ class scPecies():
         self.context_beta = context_beta_start
         self.target_beta = target_beta_start
         self.eta = eta_start   
+        self.alignment = alignment
 
         # set the random seed
         torch.manual_seed(random_seed)
@@ -642,24 +572,6 @@ class scPecies():
             torch.cuda.manual_seed_all(random_seed) 
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
-
-        # defines dictionries which save the loss function trajectories
-        self.context_history = {
-            'Epoch' : [],
-            'nELBO' : [],
-            'nlog_likeli' : [],
-            'KL-Div z' : [],
-            'KL-Div l' : [],
-            }
-
-        self.target_history = {
-            'Epoch' : [],
-            'nELBO' : [],
-            'nlog_likeli' : [],
-            'KL-Div z' : [],
-            'KL-Div l' : [],
-            'Dist to neighbor' : [],
-            }      
 
         # computes the indices of the homologous genens
         _, hom_ind_context, hom_ind_target = np.intersect1d(np.array(mdata.mod[context_dataset_key].var['human_gene_names']), np.array(mdata.mod[target_dataset_key].var['human_gene_names']), return_indices=True)    
@@ -718,46 +630,20 @@ class scPecies():
 
         self.create_directory()
         self.initialize()    
-        self.pred_labels_nns_hom_genes()
+        self.pred_labels_nns_hom_genes(self.mdata.mod[self.context_dataset_key].uns['dataset_cell_key'])
 
     def initialize(self, initialize='both'):
-        """
-        Initializes the context and/or target scVI models based on the specified hyperparameter dictionaries.
-
-        This method sets up the components of the scVI models (outer/inner encoder, library encoder, decoders, and optimizer) 
-        and assigns them to the appropriate device. The initialization can be done for either the context model, 
-        the target model, or both, depending on the argument passed.
-        If the models are already defined their parameters are reinitialized.
-
-        Parameters:
-        initialize (str): A string parameter that determines which models to initialize. 
-                        It accepts three values:
-                        - 'context': Only initialize the context scVI model.
-                        - 'target': Only initialize the target scVI model.
-                        - 'both' (default): Initialize both context and target scVI models.
-
-        Each model consists of an encoder (inner and outer), a library encoder, a decoder, and an optimizer. 
-        The weights of the inner encoder are set when intializing the context model and shared with the target model. 
-        These layer structures are configured with respective parameter dictionaries (`context_param_dict` or `target_param_dict`)
-
-        Note: Both models are automatically initialized when defining a scPecies instance.
-
-        Example Usage:
-        scPecies_instance.initialize('context')  # Initializes only the context model
-        scPecies_instance.initialize('target')   # Initializes only the target model
-        scPecies_instance.initialize()           # Initializes both models
-        """
 
         if initialize in ['context', 'both']:
             print('\nInitializing context scVI model.')
-            self.encoder_inner = Encoder_inner(device=self.device,  param_dict=self.context_param_dict).to(self.device)
+            self.context_encoder_inner = Encoder_inner(device=self.device,  param_dict=self.context_param_dict).to(self.device)
             self.context_encoder_outer = Encoder_outer(param_dict=self.context_param_dict).to(self.device)
             self.context_lib_encoder = Library_encoder(device=self.device, param_dict=self.context_param_dict).to(self.device)       
             self.context_decoder = Decoder(param_dict=self.context_param_dict).to(self.device) 
             self.context_optimizer = self.context_param_dict['optimizer'](
-                list(self.context_encoder_outer.parameters()) + list(self.context_lib_encoder.parameters()) + list(self.context_decoder.parameters()) + list(self.encoder_inner.parameters()))
+                list(self.context_encoder_outer.parameters()) + list(self.context_lib_encoder.parameters()) + list(self.context_decoder.parameters()) + list(self.context_encoder_inner.parameters()))
 
-            self.encoder_inner.__name__ = 'encoder_inner'
+            self.context_encoder_inner.__name__ = 'context_encoder_inner'
             self.context_encoder_outer.__name__ = 'context_encoder_outer'
             self.context_lib_encoder.__name__ = 'context_lib_encoder'
             self.context_decoder.__name__ = 'context_decoder'        
@@ -768,9 +654,19 @@ class scPecies():
             self.target_encoder_outer = Encoder_outer(param_dict=self.target_param_dict).to(self.device)
             self.target_lib_encoder = Library_encoder(device=self.device, param_dict=self.target_param_dict).to(self.device)       
             self.target_decoder = Decoder(param_dict=self.target_param_dict).to(self.device) 
-            self.target_optimizer =self.target_param_dict['optimizer'](
-                list(self.target_encoder_outer.parameters()) + list(self.target_lib_encoder.parameters()) + list(self.target_decoder.parameters()))
+            
+            if self.alignment == 'latent':
+                self.target_encoder_inner = Encoder_inner(device=self.device,  param_dict=self.context_param_dict).to(self.device)
+                self.target_optimizer = self.target_param_dict['optimizer'](
+                    list(self.target_encoder_outer.parameters()) + list(self.target_lib_encoder.parameters()) + list(self.target_decoder.parameters()) + list(self.target_encoder_inner.parameters()))
+           
 
+            elif self.alignment == 'inter':
+                self.target_encoder_inner = self.context_encoder_inner
+                self.target_optimizer =self.target_param_dict['optimizer'](
+                    list(self.target_encoder_outer.parameters()) + list(self.target_lib_encoder.parameters()) + list(self.target_decoder.parameters()))
+
+            self.target_encoder_inner.__name__ = 'target_encoder_inner' 
             self.target_encoder_outer.__name__ = 'target_encoder_outer'
             self.target_lib_encoder.__name__ = 'target_lib_encoder'
             self.target_decoder.__name__ = 'target_decoder'        
@@ -778,21 +674,6 @@ class scPecies():
 
 
     def create_directory(self):
-        """
-        Creates a specified directory along with predefined subdirectories if they do not already exist.
-
-        This static method checks if the directory specified by `self.directory` exists. If not, it creates
-        this directory. Additionally, it ensures the creation of three predefined subdirectories within this directory:
-
-        - 'figures': Intended to store figure files.
-        - 'params': Intended to store the scPecies parameters, hyperparameters and training history.
-        - 'dataset': Intended to store the modifies mu.Mdata object.
-
-        Note: A directory is automatically create when defining a scPecies instance.
-
-        Example Usage:
-        >>> scPecies_instance.create_directory() 
-        """
 
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
@@ -806,61 +687,29 @@ class scPecies():
                 print(f"\nCeated directory '{self.directory+'/'+folder}'.")
 
 
-    def save_to_directory(self, save='both'):
-        """
-        Saves the model parameters, history, and configurations to the directory specified by `self.directory`.
-
-        This method allows for saving the current state of the model, including its parameters, 
-        training history, and configuration details. It supports selective saving for either the 
-        'context', 'target', or 'both' models.
-
-        Parameters:
-        save (str):
-            - 'context': Save only the context model's state.
-            - 'target': Save only the target model's state.
-            - 'both' (default): Save states of both context and target models.
-
-        Example Usage:
-        >>> scPecies_instance.save_to_directory('context')  # Saves only the context model's state
-        >>> scPecies_instance.save_to_directory('target')   # Saves only the target model's state
-        >>> scPecies_instance.save_to_directory()           # Saves states of both context and target models
-        """
+    def save_params(self, save='both', name=''):
 
         model_list = []
         if save in ['context', 'both']:
-            model_list += [self.encoder_inner, self.context_encoder_outer, self.context_decoder, self.context_lib_encoder, self.context_optimizer]
-            with open(self.directory+'/params/context_history.pkl', 'wb') as pickle_file:
-                pickle.dump(self.context_history, pickle_file)
-            with open(self.directory+'/params/context_param_dict.pkl', 'wb') as pickle_file:
+            model_list += [self.context_encoder_inner, self.context_encoder_outer, self.context_decoder, self.context_lib_encoder, self.context_optimizer]
+            with open(self.directory+'/params/context_param_dict'+name+'.pkl', 'wb') as pickle_file:
                 pickle.dump(self.context_param_dict, pickle_file)
 
         if save in ['target', 'both']:
-            model_list += [self.target_encoder_outer, self.target_lib_encoder, self.target_decoder, self.target_optimizer]
-            with open(self.directory+'/params/target_history.pkl', 'wb') as pickle_file:
-                pickle.dump(self.target_history, pickle_file) 
-            with open(self.directory+'/params/target_param_dict.pkl', 'wb') as pickle_file:
+            model_list += [self.target_encoder_inner, self.target_encoder_outer, self.target_lib_encoder, self.target_decoder, self.target_optimizer]
+            with open(self.directory+'/params/target_param_dict'+name+'.pkl', 'wb') as pickle_file:
                 pickle.dump(self.target_param_dict, pickle_file) 
 
         for model in model_list:
-            torch.save(model.state_dict(), self.directory+'/params/'+model.__name__+'.pth')
+            torch.save(model.state_dict(), self.directory+'/params/'+model.__name__+name+'.pth')
         print('\nSaved models to path.')
 
     def save_mdata(self, name: str):  
-        """
-        Saves the MuData object to a specified file path.
-
-        This method is responsible for persisting the results of scPecies in the layers of the MuData object to disk. 
-        The data is saved in the H5MU format, which is a specialized format for storing multi-modal data.
-
-        Example Usage:
-        >>> scPecies_instance.save_mdata('my_mdata')  
-        # This will save the MuData object to 'self.directory/dataset/my_mdata.h5mu'
-        """
 
         self.mdata.write(self.directory+'/dataset/'+name+'.h5mu') 
         print('\nSaved mdata {}.'.format(self.directory))
 
-    # Helper for load_from_directory
+    # Helper for load_params
     def compare_elements(self, elem1, elem2):
         if type(elem1) != type(elem2):
             return False
@@ -870,53 +719,29 @@ class scPecies():
             return all(self.compare_elements(sub_elem1, sub_elem2) for sub_elem1, sub_elem2 in zip(elem1, elem2))
         return elem1 == elem2
 
-    # Helper for load_from_directory
+    # Helper for load_params
     def compare_lists(self, list1, list2):
         if len(list1) != len(list2):
             return False
         return all(self.compare_elements(elem1, elem2) for elem1, elem2 in zip(list1, list2))
 
 
-    def load_from_directory(self, load='both'): 
-        """
-        Loads the model parameters, history, and configurations from a specified directory.
-
-        This method is designed to reinstate the state of the scPecies model from previously saved files. 
-        It supports selective loading for either the 'context', 'target', or 'both' models.
-
-        Parameters:
-        load (str): Determines which model's state to load. It accepts three values:
-            - 'context': Load only the context model's state.
-            - 'target': Load only the target model's state.
-            - 'both' (default): Load states of both context and target models.
-
-        The method performs the following actions:
-        - For each selected model ('context', 'target', or both), the method iterates through the components 
-        like encoders, decoders, optimizers, etc., and loads their state dictionaries from the specified directory.
-        - It also deserializes and loads the training history and hyperparameter configuration from '.pkl' files.
-        - In case of any discrepancies between the loaded and current hyperparameters, it prints conflict information.
-        In case of a conflict it trys to initialize the saved model and overwrites the existing models
-
-        Note:
-        - The method assumes the existence of the directory defined in 'self.directory'.
-        - The directory structure includes a 'params' folder where model states and configurations are expected to be found.
-
-        Example Usage:
-        >>> scPecies_instance.load_from_directory('context')  # Loads only the context model's state
-        >>> scPecies_instance.load_from_directory('target')   # Loads only the target model's state
-        >>> scPecies_instance.load_from_directory()           # Loads states of both context and target models
-        """
+    def load_params(self, load='both', name=''): 
 
         model_list = []
-        if load in ['context', 'both']:
-            model_list += [self.encoder_inner, self.context_encoder_outer, self.context_decoder, self.context_lib_encoder, self.context_optimizer]
-            with open(self.directory+'/params/context_history.pkl', 'rb') as pickle_file:
-                self.context_history = pickle.load(pickle_file)            
-            with open(self.directory+'/params/context_param_dict.pkl', 'rb') as pickle_file:
+        if load in ['context', 'context_encoder', 'both']:
+            model_list += [self.context_encoder_inner, self.context_encoder_outer, self.context_lib_encoder]
+            if load != 'context_encoder':
+                model_list += [self.context_optimizer, self.context_decoder]
+
+            with open(self.directory+'/params/context_param_dict'+name+'.pkl', 'rb') as pickle_file:
                 loaded_param_dict = pickle.load(pickle_file)   
 
             conflicts = 0
             for key in loaded_param_dict.keys() & self.context_param_dict.keys():
+                if load == 'context_encoder' and key == 'homologous_genes':
+                    loaded_param_dict[key] = self.context_param_dict[key]
+
                 if isinstance(loaded_param_dict[key], list):
                     if self.compare_lists(loaded_param_dict[key], self.context_param_dict[key]) != True:
                         conflicts += 1                    
@@ -933,10 +758,9 @@ class scPecies():
                 self.initialize('context')
 
         if load in ['target', 'both']:
-            model_list += [self.target_encoder_outer, self.target_lib_encoder, self.target_decoder, self.target_optimizer]
-            with open(self.directory+'/params/target_history.pkl', 'rb') as pickle_file:
-                self.target_history = pickle.load(pickle_file)            
-            with open(self.directory+'/params/target_param_dict.pkl', 'rb') as pickle_file:
+            model_list += [self.target_encoder_inner, self.target_encoder_outer, self.target_lib_encoder, self.target_decoder, self.target_optimizer]
+  
+            with open(self.directory+'/params/target_param_dict'+name+'.pkl', 'rb') as pickle_file:
                 loaded_param_dict = pickle.load(pickle_file)   
 
             conflicts = 0
@@ -957,8 +781,12 @@ class scPecies():
             if conflicts > 0:
                 self.initialize('target')
 
+        if load == 'context_encoder':
+            self.context_optimizer = self.context_param_dict['optimizer'](list(self.context_decoder.parameters()))
+            self.context_optimizer.__name__ = 'context_optimizer'   
+
         for model in model_list:
-            model.load_state_dict(torch.load(self.directory+'/params/'+model.__name__+'.pth'))              
+            model.load_state_dict(torch.load(self.directory+'/params/'+model.__name__+name+'.pth'))              
         print('\nLoaded models from path.') 
 
     # helper for the pred_labels_nns_aligned_latent_space method.
@@ -967,37 +795,8 @@ class scPecies():
         values, counts = np.unique(arr, return_counts=True)
         return values[np.argmax(counts)]
 
-    def pred_labels_nns_aligned_latent_space(self, metric='euclidean', k_neigh=200, top_neigh=25, b_s=25, nns_key='_nns_aligned_latent_space'):
-        """
-        Predicts cell labels for the target dataset using a nearest neighbor search on the aligned latent space.
-
-        This method utilizes the latent representations of cells in the target dataset to predict their cell types 
-        based on the nearest neighbors from the context dataset. The predictions are made in a multi-step process 
-        involving the computation of nearest neighbors, likelihood estimation, and label assignment.
-
-        Parameters:
-        metric (str): The distance metric to use for nearest neighbors computation. Default is 'euclidean'.
-        k_neigh (int > 0): The number of nearest neighbors to consider for each cell in the target dataset. Default is 200.
-        top_neigh (0 <= int <= 100): The number of top nearest neighbors to use for final label prediction. Default is 25.
-        b_s (int > 0): Batch size to use for processing data. Default is 25 as this step is gpu intensive.
-        nns_key (str): Key to store the indices of nearest neighbors in the target dataset's MuData object. Default is '_nns_aligned_latent_space'.
-
-        The method performs the following actions:
-        - Computes the k nearest neighbors for each cell in the target dataset's latent space using the specified metric.
-        - Calculates the likelihood of these neighbors using the target model decoder.
-        - Predicts the cell type for each cell in the target dataset based on the labels of the most likeli nearest neighbors.
-        - Stores the indices of the nearest neighbors and the predicted labels in the target dataset's MuData object.
-
-        Note:
-        - The method assumes that the latent representations of context and target models have been computed and stored in the MuData objects.
-
-        Example Usage:
-        >>> scPecies_instance.pred_labels_nns_aligned_latent_space(metric='cosine', k_neigh=150, top_neigh=30, b_s=50)
-        # This will predict cell labels using the cosine distance, considering 150 nearest neighbors and the top 30 for label prediction.
-        """
-
-
-        print('\n1) Computing latent space NNS with {} neighbors.\n'.format(str(k_neigh)))
+    def calc_likelihood_on_aligned_latent_space(self, metric='euclidean', k_neigh=200, top_neigh=25, b_s=50, nns_key='_nns_aligned_latent_space'):
+        print('\nComputing latent space NNS with {} neighbors.\n'.format(str(k_neigh)))
 
         neigh = NearestNeighbors(n_neighbors=k_neigh, metric=metric)
         neigh.fit(self.mdata.mod[self.context_dataset_key].obsm['latent_mu'])
@@ -1006,7 +805,6 @@ class scPecies():
         self.mdata.mod[self.target_dataset_key].obsm['ind'+nns_key] = indices
 
         self.target_lib_encoder.eval()        
-        self.encoder_inner.eval()
         self.target_decoder.eval()
 
         steps = int(np.ceil(self.mdata.mod[self.target_dataset_key].n_obs/b_s+1e-10))
@@ -1018,7 +816,7 @@ class scPecies():
             for step in range(steps):   
                 if time.time() - tic > 0.5:
                     tic = time.time()
-                    print('\r2) Calculate likelihoods for computed neighbors. Step {}/{}     '.format(str(step), str(steps)), end='', flush=True) 
+                    print('\rCalculate likelihoods for computed neighbors. Step {}/{}     '.format(str(step), str(steps)), end='', flush=True) 
 
                 batch_adata = self.mdata.mod[self.target_dataset_key][step*b_s:(step+1)*b_s]
                 b_s = batch_adata.n_obs
@@ -1045,44 +843,12 @@ class scPecies():
         likelihoods = np.concatenate(likelihoods)
         self.mdata.mod[self.target_dataset_key].obsm['nlog_likeli'+nns_key] = likelihoods
 
-        print('\n3) Predicting labels.')
-
-        context_cell_labels = self.mdata.mod[self.context_dataset_key].obs[self.mdata.mod[self.context_dataset_key].uns['dataset_cell_key']].to_numpy()
-        predicted_cell_type = np.stack([self.most_frequent(context_cell_labels[self.mdata.mod[self.target_dataset_key].obsm['ind'+nns_key][i][np.argsort(likelihoods[i])]][:top_neigh]) for i in range(self.mdata.mod[self.target_dataset_key].n_obs)])
-
-        self.mdata.mod[self.target_dataset_key].obs['label'+nns_key] = predicted_cell_type     
-
-
-    def pred_labels_nns_hom_genes(self):
-        """
-        Predicts cell labels in the target dataset based on data-level nearest neighbors (NNS) using homologous genes.
-
-        This method employs a nearest neighbor search (NNS) approach, leveraging homologous gene expressions 
-        to predict cell labels in the target dataset. It utilizes a voting mechanism based on the most 
-        frequent labels among the nearest neighbors in the context dataset.
-        The number of nearest neighbors is set when instanciating the scPecies class. 
-        It can be retrieved and changed afterwards by calling scPecies_instance.target_param_dict['k_neigh'].
-
-        The method performs the following actions:
-        - Retrieves the indices of the nearest neighbors for each cell in the target dataset, computed based on homologous genes.
-          The method assumes that the indices of nearest neighbors based on homologous genes are already computed and available.
-          k_neigh has to be equal or lower than the number of neighbors during the computation in create_mdata_instance.setup_target_adata(neighbors)
-        - Counts the occurrences of each cell type label among the nearest neighbors.
-        - Assigns the most frequent label to each cell in the target dataset.
-        - Calculates and stores the proportion of top agreement for each cell to quantify the confidence in label prediction.
-          This is used during training of the target dataset. Alignment is performed only on samples with high confidence.
-        - Saves the predicted labels and the agreement scores in the target dataset's MuData object.
-
-        Example Usage:
-        >>> scPecies_instance.pred_labels_nns_hom_genes()
-        # This will use only one nearest neighbors for predicting cell labels based on homologous gene expressions.
-        """
-
-        print('\nEvaluating data level NNS and calculating cells with the highest agreement.')
+    def pred_labels_nns_hom_genes(self, context_cell_key, calculate_top_percent=True):
+        print('\nEvaluating data level NNS for context label key {}.'.format(context_cell_key))
 
         ind_neigh = self.mdata.mod[self.target_dataset_key].obsm['ind_nns_hom_genes']  
         ind_neigh = ind_neigh[:,:self.target_param_dict['k_neigh']]
-        context_cell_labels = self.mdata.mod[self.context_dataset_key].obs[self.mdata.mod[self.context_dataset_key].uns['dataset_cell_key']].to_numpy()
+        context_cell_labels = self.mdata.mod[self.context_dataset_key].obs[context_cell_key].to_numpy()
 
         cell_type_counts = [dict(Counter(context_cell_labels[ind_neigh[i]])) for i in range(np.shape(ind_neigh)[0])]
         top_dict = {}
@@ -1099,58 +865,64 @@ class scPecies():
             top_dict[key] = [top_dict[key][i]+(1-(i+1)/num_samples,) for i in range(len(top_dict[key]))] 
 
         cell_type_counts = sorted([item for sublist in top_dict.values() for item in sublist], key=lambda x: x[-2]) 
-        self.mdata.mod[self.target_dataset_key].obs['top_percent_nns_hom_genes'] = np.array([cell_type_counts[i][-1] for i in range(len(cell_type_counts))])
+
+        if calculate_top_percent:
+            print('\nCalculating cells with the highest agreement.')
+            self.mdata.mod[self.target_dataset_key].obs['top_percent_nns_hom_genes'] = np.array([cell_type_counts[i][-1] for i in range(len(cell_type_counts))])
+
         self.mdata.mod[self.target_dataset_key].obs['label_nns_hom_genes'] = np.array([cell_type_counts[i][0] for i in range(len(cell_type_counts))])
 
+    def eval_label_transfer(self, cell_keys, metric='euclidean', k_neigh=200, top_neigh=25, b_s=50, nns_key='_nns_aligned_latent_space'):
+        self.calc_likelihood_on_aligned_latent_space(metric='euclidean', k_neigh=200, top_neigh=25, b_s=50, nns_key='_nns_aligned_latent_space')
 
-    def compute_metrics(self):  
-        """
-        Computes various metrics to evaluate the label transfer accuracy between context and target datasets.
-        
-        It compares the performance of  data level and aligned latent space nearest neighbor strategies 
-        for label prediction and computes metrics for each strategy.
+        for context_cell_key, target_cell_key in list(cell_keys):
+            self.mdata.mod[self.context_dataset_key].uns['dataset_cell_key'] = context_cell_key
+            self.mdata.mod[self.target_dataset_key].uns['dataset_cell_key'] = target_cell_key
 
-        The method computes the following metrics:
-        - Balanced Accuracy Score, Adjusted Rand Score, Adjusted Mutual Information Score, Fowlkes-Mallows Score.
+            self.pred_labels_nns_hom_genes(context_cell_key, calculate_top_percent=False)
 
-        The results are stored in the MuData object of the target dataset for easy access and analysis.
+            likelihoods = self.mdata.mod[self.target_dataset_key].obsm['nlog_likeli'+nns_key]
+            context_cell_labels = self.mdata.mod[self.context_dataset_key].obs[context_cell_key].to_numpy()
+            predicted_cell_types = np.stack([self.most_frequent(context_cell_labels[self.mdata.mod[self.target_dataset_key].obsm['ind'+nns_key][i][np.argsort(likelihoods[i])]][:top_neigh]) for i in range(self.mdata.mod[self.target_dataset_key].n_obs)])
 
-        Note:
-        - This function assumes that label predictions have already been performed using the corresponding methods.
-        Call scPecies_instance.pred_labels_nns_hom_genes() and scPecies_instance.pred_labels_nns_aligned_latent_space() before.
+            self.mdata.mod[self.target_dataset_key].obs['label'+nns_key] = predicted_cell_types 
 
-        Example Usage:
-        >>> scPecies_instance.compute_metrics()
-        # Computes metrics for the label predictions and stores them in the target dataset's MuData object.
-        """
+            target_cell_labels = self.mdata.mod[self.target_dataset_key].obs[target_cell_key].to_numpy()
+            context_cell_types = np.unique(context_cell_labels)
+            target_cell_types = np.unique(target_cell_labels)
 
-        print('\nComputing metrics')
-        context_cell_labels = self.mdata.mod[self.context_dataset_key].obs[self.mdata.mod[self.context_dataset_key].uns['dataset_cell_key']].to_numpy()
-        target_cell_labels = self.mdata.mod[self.target_dataset_key].obs[self.mdata.mod[self.target_dataset_key].uns['dataset_cell_key']].to_numpy()
-        context_cell_types = np.unique(context_cell_labels)
-        target_cell_types = np.unique(target_cell_labels)
+            metrics_dict = {}
+            for nns_key in ['_nns_hom_genes', '_nns_aligned_latent_space']:
+                predicted_cell_types = self.mdata.mod[self.target_dataset_key].obs['label'+nns_key].to_numpy()
 
-        metrics_dict = {}
-        for nns_key in ['_nns_hom_genes', '_nns_aligned_latent_space']:
-            predicted_cell_types = self.mdata.mod[self.target_dataset_key].obs['label'+nns_key].to_numpy()
+                joint_labels, _, _ = np.intersect1d(context_cell_labels, target_cell_labels, return_indices=True)
+                joint_ind = np.where(np.array([cell_label in joint_labels for cell_label in target_cell_labels]))[0]
+                metrics_dict['balanced_accuracy_score'+nns_key] = balanced_accuracy_score(target_cell_labels[joint_ind], predicted_cell_types[joint_ind])
+                metrics_dict['adjusted_rand_score'+nns_key] = adjusted_rand_score(target_cell_labels, predicted_cell_types)
+                metrics_dict['adjusted_mutual_info_score'+nns_key] = adjusted_mutual_info_score(target_cell_labels, predicted_cell_types)
+                metrics_dict['fowlkes_mallows_score'+nns_key] = fowlkes_mallows_score(target_cell_labels, predicted_cell_types)
 
-            joint_labels, _, _ = np.intersect1d(context_cell_labels, target_cell_labels, return_indices=True)
-            joint_ind = np.where(np.array([cell_label in joint_labels for cell_label in target_cell_labels]))[0]
-            metrics_dict['balanced_accuracy_score'+nns_key] = balanced_accuracy_score(target_cell_labels[joint_ind], predicted_cell_types[joint_ind])
-            metrics_dict['adjusted_rand_score'+nns_key] = adjusted_rand_score(target_cell_labels, predicted_cell_types)
-            metrics_dict['adjusted_mutual_info_score'+nns_key] = adjusted_mutual_info_score(target_cell_labels, predicted_cell_types)
-            metrics_dict['fowlkes_mallows_score'+nns_key] = fowlkes_mallows_score(target_cell_labels, predicted_cell_types)
+                df = pd.DataFrame(0, index=target_cell_types, columns=context_cell_types)
+                for j,cell in enumerate(target_cell_labels): 
+                    df.loc[cell][predicted_cell_types[j]] +=1
 
-            df = pd.DataFrame(0, index=target_cell_types, columns=context_cell_types)
-            for j,cell in enumerate(target_cell_labels): 
-                df.loc[cell][predicted_cell_types[j]] +=1
+                df = (df.div(df.sum(axis=1), axis=0)) * 100
+                self.mdata.mod[self.target_dataset_key].uns['prediction_df'+nns_key+'_'+target_cell_key] = df
 
-            df = (df.div(df.sum(axis=1), axis=0)) * 100
-            self.mdata.mod[self.target_dataset_key].uns['prediction_df'+nns_key] = df
+            self.mdata.mod[self.target_dataset_key].uns['metrics_'+target_cell_key] = metrics_dict
 
-        self.mdata.mod[self.target_dataset_key].uns['metrics'] = metrics_dict
+            knn_acc = self.mdata.mod[self.target_dataset_key].uns['metrics_'+target_cell_key]['balanced_accuracy_score_nns_hom_genes']*100
+            latent_acc = self.mdata.mod[self.target_dataset_key].uns['metrics_'+target_cell_key]['balanced_accuracy_score_nns_aligned_latent_space']*100
 
-    # Helper for filter_outliers
+            knn_adj = self.mdata.mod[self.target_dataset_key].uns['metrics_'+target_cell_key]['adjusted_rand_score_nns_hom_genes']
+            latent_adj = self.mdata.mod[self.target_dataset_key].uns['metrics_'+target_cell_key]['adjusted_rand_score_nns_aligned_latent_space']
+
+            knn_mis = self.mdata.mod[self.target_dataset_key].uns['metrics_'+target_cell_key]['adjusted_mutual_info_score_nns_hom_genes']
+            latent_mis = self.mdata.mod[self.target_dataset_key].uns['metrics_'+target_cell_key]['adjusted_mutual_info_score_nns_aligned_latent_space']
+
+            print('\n Cell labely key: {}. KNN search on hom. genes --> Acc: {}%, ARI: {}, AMI: {}'.format(target_cell_key, round(knn_acc,2), round(knn_adj,3), round(knn_mis,3)))
+            print('\n Cell labely key: {}. KNN search in lat. space --> Acc: {}%, ARI: {}, AMI: {}'.format(target_cell_key, round(latent_acc,2), round(latent_adj,3), round(latent_mis,3)))
+
     @staticmethod
     def average_slices(array, slice_sizes):
         averages = []
@@ -1162,8 +934,6 @@ class scPecies():
             start = end
         return np.stack(averages)
 
-    # Filters outliers from a latent_mu cell cluster based on the Mahalanobis distance and a specified confidence level.
-    # Helper for compute_logfold_change
     @staticmethod
     def filter_outliers(data, confidence_level=0.9):
         mean = np.mean(data, axis=0)
@@ -1171,65 +941,60 @@ class scPecies():
         cov_matrix = np.dot(data_centered.T, data_centered) / (data_centered.shape[0] - 1)
         cov_inv = np.linalg.inv(cov_matrix)
 
-        # Compute Mahalanobis distance
         m_dist = np.sqrt(np.sum(np.dot(data_centered, cov_inv) * data_centered, axis=1))
 
-        # Determine the threshold for the given confidence level using the chi-squared distribution
-        df = mean.shape[0]  # Degrees of freedom (number of dimensions)
+        df = mean.shape[0]  
         threshold = np.sqrt(chi2.ppf(confidence_level, df))
-        # Filter points within the threshold
+
         filtered_data_ind = m_dist < threshold
         outlier_ind = m_dist >= threshold
         return filtered_data_ind, outlier_ind
 
-    def compute_logfold_change(self, eps=1e-6, lfc_delta=1, samples=10000, b_s=128, confidence_level=0.9):
-        """
-        Computes the log-fold change (LFC) for normalized gene expression modeled by the scVI models between context and target datasets.
-
-        This method evaluates the differential expression of homologous genes between the context 
-        and target datasets by calculating the log-fold change. It is useful for identifying genes 
-        that are differentially expressed across species or conditions.
-
-        Parameters:
-        eps (float > 0): A small constant added to expression values to correct for lowly expressed genes with high LFC. Default is 1e-6.
-        lfc_delta (float > 0): The threshold for considering significant log-fold changes. Default is 1.
-        samples (int > 0): The number of samples to be taken from the cell type plugin estimator for computing the log-fold change. Default is 10000.
-        b_s (int > 0): Batch size for processing the data. Default is 128.
-        confidence_level (0 < float <= 1) Confidene level to filter cells from the context latent_mu cell clusters
-
-        The method performs the following steps:
-        - Retrieves the indices of homologous genes between context and target datasets.
-        - For each cell type common to both datasets, calculates the log-fold change in expression levels.
-          When the cell types of the traget dataset are unknown computes them for context every cell type. (Saved in 'lfc_df')
-        - Estimates the probability of a gene being differentially expressed based on the lfc threshold. (Saved in 'prob_df')
-        - Stores the results in the MuData object under the context modality in the .uns layer with keys 'lfc_df' and 'prob_df'.
-
-        Example Usage:
-        >>> scPecies_instance.compute_logfold_change()
-        # Computes the log-fold change for homologous genes between context and target datasets.
-        """
-
+    def compute_logfold_change(self, context_cell_key, target_cell_key, eps=1e-6, lfc_delta=1, samples=10000, b_s=128, confidence_level=0.9):
         self.mdata.mod[self.context_dataset_key].uns['lfc_delta'] = lfc_delta
         self.context_decoder.eval()   
-        self.target_decoder.eval() 
+        self.target_decoder.eval()     
 
         context_ind = np.array(self.context_param_dict['homologous_genes'])
         context_gene_names = self.mdata.mod[self.context_dataset_key].var_names.to_numpy()[context_ind]
 
-        context_cell_labels = self.mdata.mod[self.context_dataset_key].obs[self.mdata.mod[self.context_dataset_key].uns['dataset_cell_key']].to_numpy()
+        context_cell_labels = self.mdata.mod[self.context_dataset_key].obs[context_cell_key].to_numpy()
         context_cell_types = np.unique(context_cell_labels)
         context_cell_index = {c : np.where(context_cell_labels == c)[0] for c in context_cell_types}
 
-        if self.mdata.mod[self.target_dataset_key].uns['dataset_cell_key'] == None:
+        context_batch_key = self.mdata.mod[self.context_dataset_key].uns['dataset_batch_key']
+        target_batch_key = self.mdata.mod[self.target_dataset_key].uns['dataset_batch_key']
+
+        context_batch_labels = self.mdata.mod[self.context_dataset_key].obs[context_batch_key].to_numpy().reshape(-1, 1)
+        target_batch_labels = self.mdata.mod[self.target_dataset_key].obs[target_batch_key].to_numpy().reshape(-1, 1)
+
+        context_enc = OneHotEncoder()
+        context_enc.fit(context_batch_labels)
+
+        target_enc = OneHotEncoder()
+        target_enc.fit(target_batch_labels)
+
+        context_batches = {c : self.mdata.mod[self.context_dataset_key][self.mdata.mod[self.context_dataset_key].obs[context_cell_key] == c].obs[context_batch_key].value_counts() > 3 for c in context_cell_types}
+        context_batches = {c : context_batches[c][context_batches[c]].index.to_numpy() for c in context_cell_types}
+        context_batches = {c : context_enc.transform(context_batches[c].reshape(-1, 1)).toarray().astype(np.float32)  for c in context_cell_types}
+        context_batches['unknown'] = context_enc.transform(np.unique(context_batch_labels).reshape(-1, 1)).toarray().astype(np.float32)
+
+        if target_cell_key == None:
             joint_cell_types = context_cell_types
 
         else:
-            target_cell_labels = self.mdata.mod[self.target_dataset_key].obs[self.mdata.mod[self.target_dataset_key].uns['dataset_cell_key']].to_numpy()
+            target_cell_labels = self.mdata.mod[self.target_dataset_key].obs[target_cell_key].to_numpy()
             target_cell_types = np.unique(target_cell_labels)
             joint_cell_types = np.intersect1d(context_cell_types, target_cell_types, return_indices=True)[0]
+            target_batches = {c : self.mdata.mod[self.target_dataset_key][self.mdata.mod[self.target_dataset_key].obs[target_cell_key] == c].obs[target_batch_key].value_counts() > 3 for c in target_cell_types}
+            target_batches = {c : target_batches[c][target_batches[c]].index.to_numpy() for c in target_cell_types}
+            target_batches = {c : target_enc.transform(target_batches[c].reshape(-1, 1)).toarray().astype(np.float32)  for c in target_cell_types}
+            target_batches['unknown'] = target_enc.transform(np.unique(target_batch_labels).reshape(-1, 1)).toarray().astype(np.float32)
+
 
         df_lfc = pd.DataFrame(0, index=context_gene_names, columns=joint_cell_types)
         df_prob = pd.DataFrame(0, index=context_gene_names, columns=joint_cell_types)
+
 
         for cell_type in joint_cell_types:
             adata = self.mdata.mod[self.context_dataset_key][context_cell_index[cell_type]]
@@ -1239,9 +1004,6 @@ class scPecies():
 
             steps = np.ceil(adata.n_obs/b_s).astype(int)    
             sampling_size = max(int(samples / adata.n_obs), 1)
-
-            context_batches = self.mdata.mod[self.context_dataset_key].uns['batch_dict']
-            target_batches = self.mdata.mod[self.target_dataset_key].uns['batch_dict']
 
             with torch.no_grad():
                 logfold_list = []                
@@ -1294,20 +1056,9 @@ class scPecies():
         self.mdata.mod[self.context_dataset_key].uns['prob_df'] = df_prob        
 
     def eval_context(self):
-        """
-        Evaluates the context scVI model by computing latent and intermediate representations of the context dataset.
-        - Stores these representations under the context modality (latent_mu, latent_sig, and inter) in the MuData object .obsm layer for later use.
-
-        Note:
-        - This method should be called after training the context model and before any downstream analysis.
-        
-        Example Usage:
-        >>> scPecies_instance.eval_context()
-        # Evaluates the context model and updates the MuData object with latent and intermediate representations.
-        """
 
         self.context_encoder_outer.eval()  
-        self.encoder_inner.eval()
+        self.context_encoder_inner.eval()
 
         b_s = self.context_param_dict['b_s']
         steps = int(np.ceil(self.mdata.mod[self.context_dataset_key].n_obs/b_s+1e-10))        
@@ -1326,7 +1077,7 @@ class scPecies():
                 label_batch = torch.from_numpy(batch_adata.obsm['batch_label_enc']).to(self.device) 
 
                 inter = self.context_encoder_outer(data_batch, label_batch) 
-                z_loc, z_log_sig = self.encoder_inner.encode(inter)             
+                z_loc, z_log_sig = self.context_encoder_inner.encode(inter)             
 
                 mu_list.append(z_loc.cpu().numpy())
                 inter_list.append(inter.cpu().numpy())
@@ -1338,22 +1089,12 @@ class scPecies():
     
 
     def eval_target(self, save_intermediate=False):     
-        """
-        Evaluates the target scVI model by computing latent and intermediate representations of the target dataset.
-        - Stores these representations under the target modality (latent_mu, latent_sig, and inter) in the MuData object .obsm layer for later use.
-        If the by default it does not save the intermediate representations of the target dataset. 
-        Set save_intermediate to true to store them. 
 
-        Note:
-        - This method should be called after training the target model and before any downstream analysis.
-        
-        Example Usage:
-        >>> scPecies_instance.eval_target()
-        # Evaluates the context model and updates the MuData object with latent and intermediate representations.
-        """
+        if self.alignment == 'inter':
+            self.target_encoder_inner = self.context_encoder_inner
 
         self.target_encoder_outer.eval()   
-        self.encoder_inner.eval()
+        self.target_encoder_inner.eval()
 
         b_s = self.target_param_dict['b_s']
         steps = int(np.ceil(self.mdata[self.target_dataset_key].n_obs/b_s+1e-10))
@@ -1373,8 +1114,8 @@ class scPecies():
                 data_batch = torch.from_numpy(batch_adata.X.toarray()).to(self.device)
                 label_batch = torch.from_numpy(batch_adata.obsm['batch_label_enc']).to(self.device) 
 
-                inter = self.target_encoder_outer(data_batch, label_batch) 
-                z_loc, z_log_sig = self.encoder_inner.encode(inter)             
+                inter = self.target_encoder_outer(data_batch, label_batch)           
+                z_loc, z_log_sig = self.target_encoder_inner.encode(inter)  
 
                 mu_list.append(z_loc.cpu().numpy())
                 inter_list.append(inter.cpu().numpy())
@@ -1388,94 +1129,90 @@ class scPecies():
 
     @staticmethod
     def update_param(parameter, min_value, max_value, steps):
-        """
-        Incrementally updates a parameter value during training towards a maximum value within specified steps.
-
-        The increment is determined based on the range (max_value - min_value) and the number of steps provided.
-        If the number of steps is zero or the minimum and maximum values are the same, the parameter is returned
-        as is, without any modification.
-
-        Parameters:
-        parameter (float): The current value of the parameter to be updated.
-        min_value (float): The value of the parameter at the beginning of the training.
-        max_value (float): The maximum value of the range towards which the parameter should be updated.
-        steps (int): The number of steps over which the parameter should reach the maximum value.
-
-        Returns:
-        float/int: The updated parameter value, which will not exceed the max_value.
-
-
-        Example Usage:
-        >>> ClassName.update_param(5, 0, 10, 20)  # Increments a parameter with value 5 from initial value 0 towards 10 in 20 steps. Returns 5.5
-        """        
-
+    
         if steps == 0 or min_value == max_value:
             return parameter
 
         parameter += (max_value - min_value) / steps
         return min(parameter, max_value)
 
+    def initialize_prototypes(self, context_cell_key, target_cell_key):
+        context_cell_labels = self.mdata.mod[self.context_dataset_key].obs[context_cell_key].to_numpy()
+        context_cell_index = {c : np.where(context_cell_labels == c)[0] for c in np.unique(context_cell_labels)}
 
-
-    def train_context(self, epochs=None, raise_beta=True, save_model=True, early_stopping=True):
-        """
-        This method pretrains the context scVI on the context dataset. It involves multiple 
-        training epochs where the model parameters are optimized to reduce the negative 
-        evidence lower bound (nELBO).
-
-        Parameters:
-        - epochs (int, optional): The number of training epochs. If not specified, it is calculated based on 
-        the dataset size.
-        - raise_beta (bool): If True, gradually increases the weight of the KL-divergence 
-        in the loss function to the provided maximum values according to the self.context_param_dict.
-        - save_model (bool): If True, saves the model parameters and training history after 
-        training.
-        - early_stopping (bool): If True, stops training after there is no decrease in loss for 
-        more than 5 epochs
-
-        Note:
-        - It is important to run this method before using the target model for any downstream tasks.
-
-        Example Usage:
-        >>> scPecies_instance.train_context(epochs=100, raise_beta=True, early_stopping=False)
-        # Trains the context model for 100 epochs without early stopping.
-        """
+        target_cell_labels = self.mdata.mod[self.target_dataset_key].obs[target_cell_key].to_numpy()
+        target_cell_index = {c : np.where(target_cell_labels == c)[0] for c in np.unique(target_cell_labels)}
         
+        self.context_mean = []
+        self.context_label = []
+        for c in np.unique(context_cell_labels):
+            self.context_mean.append(np.median(self.mdata.mod[self.context_dataset_key][context_cell_index[c]].X.toarray(), axis=0))
+            self.context_label.append(np.mean(self.mdata.mod[self.context_dataset_key][context_cell_index[c]].obsm['batch_label_enc'], axis=0))       
+        self.context_mean = torch.from_numpy(np.stack(self.context_mean)).to(self.device)
+        self.context_label = torch.from_numpy(np.stack(self.context_label)).to(self.device)
+
+        self.context_encoder_outer.eval()
+        self.context_encoder_inner.eval()        
+        with torch.no_grad():        
+            self.mu_context = self.context_encoder_inner.encode(self.context_encoder_outer(self.context_mean, self.context_label))[0]
+        self.context_encoder_outer.train()
+
+        self.target_mean = []
+        self.target_label = []
+        for c in np.unique(target_cell_labels):
+            self.target_mean.append(np.median(self.mdata.mod[self.target_dataset_key][target_cell_index[c]].X.toarray(), axis=0))
+            self.target_label.append(np.mean(self.mdata.mod[self.target_dataset_key][target_cell_index[c]].obsm['batch_label_enc'], axis=0))    
+        self.target_mean = torch.from_numpy(np.stack(self.target_mean)).to(self.device)
+        self.target_label = torch.from_numpy(np.stack(self.target_label)).to(self.device)
+        self.initialized = False
+
+    def eval_prototypes(self):
+        if self.initialized == False:
+            self.nlog_likeli_neighbors = []
+            self.param = torch.ones((self.target_mean.size(0), 1)).to(self.device)
+            self.label_interl = torch.repeat_interleave(self.target_label, repeats=self.mu_context.size(0), dim=0)
+            self.data_interl = torch.repeat_interleave(self.target_mean, repeats=self.mu_context.size(0), dim=0)
+            self.context_rep = self.mu_context.repeat(self.target_mean.size(0), 1)
+            self.initialized = True
+
+        self.target_lib_encoder.eval()
+        self.target_decoder.eval()
+        with torch.no_grad():    
+            l = self.target_lib_encoder(self.target_mean, self.target_label, self.param, self.param)[0]
+            lib_interl = torch.repeat_interleave(l, repeats=self.mu_context.size(0), dim=0)
+
+            outp = self.target_decoder.decode(self.context_rep, self.label_interl)
+            likeli = self.target_decoder.calc_nlog_likelihood(outp, lib_interl, self.data_interl).reshape(self.target_mean.size(0), self.context_mean.size(0))
+            self.nlog_likeli_neighbors.append(likeli.cpu().numpy())
+
+        self.target_lib_encoder.train()
+        self.target_decoder.train()
+
+    def train_context(self, epochs=40, raise_beta=True, save_model=True, train_decoder_only=False, save_key=''):
         b_s = self.context_param_dict['b_s']
         n_obs = self.mdata.mod[self.context_dataset_key].n_obs
 
-        if epochs is None:        
-            epochs = np.min([round((15000 / n_obs) * 400), 400])
-
         steps_per_epoch = int(n_obs/b_s)
-        progBar = Progress_Bar(epochs, steps_per_epoch, ['nELBO', 'nlog_likeli', 'KL-Div z', 'KL-Div l'], ['nELBO last epoch', 'nlog last epoch'])
-    
-        print(f'\nPretraining on the context dataset for a maximum of {epochs} epochs and {epochs*steps_per_epoch} iterations.')
+
+        progBar = Progress_Bar(epochs, steps_per_epoch, ['nELBO', 'nlog_likeli', 'KL-Div z', 'KL-Div l'])
+
+        print(f'\nPretraining on the context dataset for {epochs} epochs (= {epochs*steps_per_epoch} iterations).')
 
         self.context_encoder_outer.train()
         self.context_lib_encoder.train()        
-        self.encoder_inner.train()
+        self.context_encoder_inner.train()
         self.context_decoder.train()
 
-        avg_nelbo_list = []
+        if train_decoder_only:
+            self.context_encoder_outer.eval()
+            self.context_lib_encoder.eval()        
+            self.context_encoder_inner.eval()            
+
         for epoch in range(epochs):
             perm = self.rng.permutation(n_obs)  
 
             if raise_beta: 
                 self.context_beta = self.update_param(self.context_beta, self.context_param_dict['beta_start'], self.context_param_dict['beta_max'], self.context_param_dict['beta_epochs_raise'])    
-
-            avg_nelbo, avg_nlog = 0, 0
-
-            if epoch > 0:
-                avg_nlog = np.mean(self.context_history['nlog_likeli'][-steps_per_epoch:])
-                avg_nelbo = np.mean(self.context_history['nELBO'][-steps_per_epoch:])   
-                avg_nelbo_list.append(avg_nelbo)
-
-            if epoch >= 15 and early_stopping:
-                if avg_nelbo_list[-5] < avg_nelbo:
-                    print('\nStopped training prematurely as no progress was observed in the last five epochs.')
-                    break
-
 
             for step in range(steps_per_epoch):         
                 self.context_optimizer.zero_grad(set_to_none=True)
@@ -1483,78 +1220,52 @@ class scPecies():
                 batch_adata = self.mdata.mod[self.context_dataset_key][perm[step*b_s:(step+1)*b_s]]
                 data_batch = torch.from_numpy(batch_adata.X.toarray()).to(self.device)
                 label_batch = torch.from_numpy(batch_adata.obsm['batch_label_enc']).to(self.device)         
-                lib_mu_batch = torch.from_numpy(np.array(batch_adata.obs['library_log_mean'])).to(self.device)          
-                lib_sig_batch = torch.from_numpy(np.array(batch_adata.obs['library_log_std'])).to(self.device)  
+                lib_mu_batch = torch.from_numpy(batch_adata.obs['library_log_mean'].to_numpy()).to(self.device)          
+                lib_sig_batch = torch.from_numpy(batch_adata.obs['library_log_std'].to_numpy()).to(self.device)  
 
-                z, z_kl_div = self.encoder_inner(self.context_encoder_outer(data_batch, label_batch)) 
+                z, z_kl_div = self.context_encoder_inner(self.context_encoder_outer(data_batch, label_batch)) 
                 l, l_kl_div = self.context_lib_encoder(data_batch, label_batch, lib_mu_batch, lib_sig_batch)         
                 
                 nlog_likeli = self.context_decoder(z, label_batch, l, data_batch)
 
                 nelbo = self.context_beta * (z_kl_div + l_kl_div) + nlog_likeli
-        
+
                 nelbo.backward()
                 self.context_optimizer.step() 
 
-                self.context_history['Epoch'].append(epoch+1)
-                self.context_history['nELBO'].append(nelbo.item())
-                self.context_history['nlog_likeli'].append(nlog_likeli.item())
-                self.context_history['KL-Div z'].append(z_kl_div.item())     
-                self.context_history['KL-Div l'].append(l_kl_div.item())
-
-                progBar.update(
-                    self.context_history['Epoch'][-1], 
-                    [self.context_history['nELBO'][-1], self.context_history['nlog_likeli'][-1], self.context_history['KL-Div z'][-1], self.context_history['KL-Div l'][-1]], 
-                    [avg_nelbo, avg_nlog])
+                progBar.update({'nELBO': nelbo.item(), 'nlog_likeli': nlog_likeli.item(), 'KL-Div z': (self.context_beta * z_kl_div).item(), 'KL-Div l': (self.context_beta * l_kl_div).item()})
 
         if save_model == True:    
-            self.save_to_directory('context')  
+            self.save_params('context',name=save_key)  
 
-    def train_target(self, epochs=None, save_model=True, raise_beta=True, raise_eta=True, nns_key='_nns_hom_genes', alignment='inter', use_latent='z', early_stopping=True):
-        """
-        This method is responsible for training the target model using the specified target dataset. 
-        It iterates over multiple epochs to optimize the model parameters by minimizing the 
-        negative evidence lower bound (nELBO) along with an additional alignment term.
+    def train_target(self, epochs=40, save_model=True, raise_beta=True, raise_eta=True, nns_key='_nns_hom_genes', save_key='', track_prototypes=False):
 
-        Parameters:
-        - epochs (int, optional): Number of epochs for training. If not provided, it is automatically 
-        determined based on the size of the dataset.
-        - save_model (bool): If True, saves the model parameters post-training.
-        - raise_beta (bool): If True, the weight of the KL-divergence term in the loss 
-        function is progressively increased to the provided maximum values according to the self.target_param_dict.
-        - raise_eta (bool): If True, the weight of the alignment term in the loss 
-        function is gradually increased to the provided maximum values according to the self.target_param_dict.
-        - nns_key (str): Key for nearest neighbors indices used for alignment in the dataset.
-        - alignment ('inter' or 'latent'): Where aligmnet should be performed, either 'inter' (intermediate space) or 'latent' (latent space).
-        - use_latent ('z' or 'mu'): Determines whether to use 'z' (latent variables) or 'mu' (variational mean parameter) for alignment.
-        - early_stopping (bool): If True, stops training after there is no decrease in loss for 
-        more than 5 epochs
-
-        Example Usage:
-        >>> model_instance.train_target(epochs=50, save_model=True, raise_beta=True, 
-                                        raise_eta=True, alignment='inter')
-        # Trains the target model for 50 epochs with specified parameters and saves the model post-training.
-        """
-
+        if track_prototypes:
+            self.initialize_prototypes(
+                context_cell_key=self.mdata.mod[self.context_dataset_key].uns['dataset_cell_key'], 
+                target_cell_key=self.mdata.mod[self.target_dataset_key].uns['dataset_cell_key'])    
 
         b_s = self.target_param_dict['b_s']
         n_obs = self.mdata.mod[self.target_dataset_key].n_obs
         k_neigh = self.target_param_dict['k_neigh']
         top_percent = self.target_param_dict['top_percent']
 
-        if epochs is None:        
-            epochs = np.min([round((15000 / n_obs) * 400), 400])
+
         steps_per_epoch = int(n_obs/b_s)
 
-        progBar = Progress_Bar(epochs, steps_per_epoch, ['nELBO', 'nlog_likeli', 'KL-Div z', 'KL-Div l', 'Dist to neighbor'], ['nELBO last epoch', 'nlog last epoch']) 
-        print(f'\nTraining on the target dataset for a maximum of {epochs} epochs and {epochs*steps_per_epoch} iterations.')
+        progBar = Progress_Bar(epochs, steps_per_epoch, ['nELBO', 'nlog_likeli', 'KL-Div z', 'KL-Div l', 'Dist to neighbor']) 
+        print(f'\nTraining on the target dataset for {epochs} epochs (= {epochs*steps_per_epoch} iterations).')
 
         self.target_encoder_outer.train()
         self.target_lib_encoder.train()        
         self.target_decoder.train()
-        self.encoder_inner.eval()
+        self.target_encoder_inner.train()
+        
+        if self.alignment == 'inter':
+            self.target_encoder_inner = self.context_encoder_inner
+            self.target_encoder_inner.eval()
 
-        avg_nelbo_list = []
+
         for epoch in range(epochs):
             perm = self.rng.permutation(n_obs)     
             if raise_beta:       
@@ -1562,135 +1273,89 @@ class scPecies():
             if raise_eta:
                 self.eta = self.update_param(self.eta, self.target_param_dict['eta_start'], self.target_param_dict['eta_max'], self.target_param_dict['eta_epochs_raise'])    
 
-            avg_nelbo, avg_nlog = 0, 0
-
-            if epoch > 0:
-                avg_nlog = np.mean(self.target_history['nlog_likeli'][-steps_per_epoch:])
-                avg_nelbo = np.mean(self.target_history['nELBO'][-steps_per_epoch:])    
-                avg_nelbo_list.append(avg_nelbo)
-
-
-            if epoch > 15 and early_stopping:
-                if avg_nelbo_list[-5] < avg_nelbo:
-                    print('\nStopped training prematurely as no progress was observed in the last five epochs.')                    
-                    break
-   
-
             for step in range(steps_per_epoch): 
+                if track_prototypes:
+                    self.eval_prototypes()
                 self.target_optimizer.zero_grad(set_to_none=True)
 
                 batch_adata = self.mdata.mod[self.target_dataset_key][perm[step*b_s:(step+1)*b_s]]
 
                 data_batch = torch.from_numpy(batch_adata.X.toarray()).to(self.device)
                 label_batch = torch.from_numpy(batch_adata.obsm['batch_label_enc']).to(self.device)         
-                lib_mu_batch = torch.from_numpy(np.array(batch_adata.obs['library_log_mean'])).to(self.device)          
-                lib_sig_batch = torch.from_numpy(np.array(batch_adata.obs['library_log_std'])).to(self.device)  
+                lib_mu_batch = torch.from_numpy(batch_adata.obs['library_log_mean'].to_numpy()).to(self.device)          
+                lib_sig_batch = torch.from_numpy(batch_adata.obs['library_log_std'].to_numpy()).to(self.device)  
 
                 inter = self.target_encoder_outer(data_batch, label_batch)
 
-                z, z_kl_div = self.encoder_inner(inter) 
+                z, z_kl_div = self.target_encoder_inner(inter)                 
                 l, l_kl_div = self.target_lib_encoder(data_batch, label_batch, lib_mu_batch, lib_sig_batch)   
                         
                 nlog_likeli = self.target_decoder(z, label_batch, l, data_batch)                    
                 ind_top = np.where(batch_adata.obs['top_percent'+nns_key].to_numpy()<top_percent/100)[0]  
                 if np.shape(ind_top)[0] < 1: ind_top = np.reshape(np.random.randint(b_s), (1,))
 
-                ind_neigh = np.reshape(batch_adata.obsm['ind'+nns_key][ind_top, :k_neigh], (np.shape(ind_top)[0]*k_neigh))
-
-                if use_latent == 'z':
-                    neigh_mu = torch.from_numpy(self.mdata.mod[self.context_dataset_key].obsm['latent_mu'][ind_neigh]).to(self.device)  
-                    neigh_sig = torch.from_numpy(self.mdata.mod[self.context_dataset_key].obsm['latent_sig'][ind_neigh]).to(self.device)  
-                    neigh_latent = neigh_mu + neigh_sig * self.encoder_inner.sampling_dist.sample(torch.Size([neigh_sig.size(dim=0)]))
-
-                elif use_latent == 'mu':
-                    neigh_latent = torch.from_numpy(self.mdata.mod[self.context_dataset_key].obsm['latent_mu'][ind_neigh]).to(self.device)  
-
+                ind_neigh = batch_adata.obsm['ind'+nns_key][ind_top, :k_neigh]
+                neigh_mu = torch.from_numpy(self.mdata.mod[self.context_dataset_key].obsm['latent_mu'][ind_neigh]).to(self.device)  
+                neigh_sig = torch.from_numpy(self.mdata.mod[self.context_dataset_key].obsm['latent_sig'][ind_neigh]).to(self.device)    
+                neigh_z = neigh_mu + neigh_sig * self.context_encoder_inner.sampling_dist.sample(torch.Size([neigh_sig.size(dim=0), neigh_sig.size(dim=1)]))
+               
+                  
                 label_interl = torch.repeat_interleave(label_batch[ind_top], repeats=k_neigh, dim=0)
                 lib_interl = torch.repeat_interleave(l[ind_top], repeats=k_neigh, dim=0)
                 data_interl = torch.repeat_interleave(data_batch[ind_top], repeats=k_neigh, dim=0)
 
-                outp = self.target_decoder.decode(neigh_latent, label_interl)
+                outp = self.target_decoder.decode(neigh_z.view(-1, neigh_z.size(-1)), label_interl)
 
                 nlog_likeli_neighbors = self.target_decoder.calc_nlog_likelihood(outp, lib_interl, data_interl).reshape(np.shape(ind_top)[0], k_neigh)
                 best_pin_for_x = torch.argmin(nlog_likeli_neighbors, dim=1).cpu().numpy()
 
-                if alignment == 'inter':
+                if self.alignment == 'inter':
                     align_target = torch.from_numpy(self.mdata.mod[self.context_dataset_key].obsm['inter'][batch_adata.obsm['ind'+nns_key][ind_top, best_pin_for_x]]).to(self.device)
                     sqerror_align = torch.sum((inter[ind_top] - align_target)**2, dim=-1).mean()
 
-                elif alignment == 'latent':
-                    mu_h, _ = self.encoder_inner.encode(inter) 
-                    align_target = torch.from_numpy(self.mdata.mod[self.context_dataset_key].obsm['latent_mu'][batch_adata.obsm['ind'+nns_key][ind_top, best_pin_for_x]]).to(self.device)
-                    sqerror_align = torch.sum((mu_h[ind_top] - align_target)**2, dim=-1).mean() * (self.target_param_dict['dims_enc_outer'][-1] / self.target_param_dict['latent_dim']) / 5.0
+                elif self.alignment == 'latent':
+                    sqerror_align = torch.sum((z[ind_top] - neigh_z[np.arange(len(ind_top)),best_pin_for_x])**2, dim=-1).mean()
 
                 nelbo = self.target_beta * (z_kl_div + l_kl_div) + nlog_likeli + self.eta * sqerror_align
 
                 nelbo.backward()
                 self.target_optimizer.step() 
-                
-                self.target_history['Epoch'].append(epoch+1)
-                self.target_history['nELBO'].append(nelbo.item())
-                self.target_history['nlog_likeli'].append(nlog_likeli.item())
-                self.target_history['KL-Div z'].append(z_kl_div.item())     
-                self.target_history['KL-Div l'].append(l_kl_div.item())
-                self.target_history['Dist to neighbor'].append(sqerror_align.item())                
 
-
-                progBar.update(
-                    self.target_history['Epoch'][-1], 
-                    [self.target_history['nELBO'][-1], self.target_history['nlog_likeli'][-1], self.target_history['KL-Div z'][-1], self.target_history['KL-Div l'][-1], self.target_history['Dist to neighbor'][-1]], 
-                    [avg_nelbo, avg_nlog])                
-        
+                progBar.update({'nELBO': nelbo.item(), 'nlog_likeli': nlog_likeli.item(), 'KL-Div z': (self.target_beta * z_kl_div).item(), 'KL-Div l': (self.target_beta * l_kl_div).item(), 'Dist to neighbor': (self.eta * sqerror_align).item()})
+       
         if save_model == True:            
-            self.save_to_directory('target')                                                         
-
-
+            self.save_params('target',name=save_key)        
 
 
 class Progress_Bar():
-    def __init__(self, epochs, steps, metrics_iter, metrics_batch=None, avg_over_n_steps=100, sleep_print=1):
-        """
-        Initializes a Progress_Bar class, a utility for displaying training progress during model training.
-        It shows metrics such as epoch number, steps completed, estimated time remaining, and performance metrics.
+    def __init__(self, epochs, steps_per_epoch, metrics, avg_over_n_steps=100, sleep_print=0.5):
 
-        Parameters:
-        epochs (int): Total number of epochs for training.
-        steps (int): Number of steps per epoch.
-        metrics_iter (list): A list of metrics to be displayed at each iteration.
-        metrics_batch (list, optional): Additional metrics to be displayed after each epoch. Defaults to None.
-        avg_over_n_steps (int): Number of steps over which to average the metrics. 
-        sleep_print (int): Time interval (in seconds) between updates to the progress bar. 
-        """
         self.epochs = epochs
-        self.steps = steps     
-        self.remaining_steps = self.epochs * steps
+        self.steps_per_epoch = steps_per_epoch 
+        self.total_steps = self.epochs * steps_per_epoch
+        self.remaining_steps = self.epochs * steps_per_epoch
         self.avg_over_n_steps = avg_over_n_steps
         self.tic = time.time() 
         self.sleep_print = sleep_print
-        self.dict = {'Progress' : "0.000%",
+        self.iteration = 0
+        self.metrics = metrics
+        self.time_metrics = ['Progress', 'ETA', 'Epoch', 'Iteration', 'ms/Iteration']
+        
+        self.dict = {
+                    'Progress' : "0.000%",
                     'ETA' : 0.0,
                     'Epoch' : int(1),
                     'Iteration' : int(0),
-                    'ms/Iteration' : 0.0}
-        self.avg = {key : [0.0] for key in metrics_iter + ['time']}
-        self.avg['time'] = [time.time()]
-        self.metrics_iter = metrics_iter
-        self.metrics_batch = metrics_batch
-        self.impr = {key : 0.0 for key in metrics_batch}
+                    'ms/Iteration' : 0.0,
+                    'time': [time.time()]
+                    }
 
+        self.dict.update({metric: [] for metric in metrics})
+        self.dict.update({metric+' last ep': [] for metric in metrics})
+        self.dict.update({metric+' impr': 0.0 for metric in metrics})
+        
     @staticmethod
     def format_number(number, min_length):
-        """
-        Formats a number to a string with a specified minimum length.
-
-        Parameters:
-        number (float): The number to format.
-        min_length (int): The minimum length of the formatted string.
-
-        Returns:
-        str: The formatted string representation of the number.
-        """
-
         decimal_count = len(str(number).split('.')[0])  
         decimal_places = max(min_length - decimal_count, 0) 
 
@@ -1698,68 +1363,45 @@ class Progress_Bar():
         return formatted_number
     
     def ret_sign(self, number, min_length):
-        """
-        Returns a string representation of a number with a sign, formatted to a specified minimum length.
-
-        Parameters:
-        number (float): The number to represent.
-        min_length (int): The minimum length of the formatted string.
-
-        Returns:
-        str: A string representing the number with a sign (positive in red, negative in green, or '---' for zero).
-        """
-
         if number > 0.0:
-            sign_str = '\033[91m{}\033[00m'.format("+" + self.format_number(np.abs(number), min_length))
+            sign_str = '\033[92m{}\033[00m'.format("+" + self.format_number(np.abs(number), min_length))
         elif number < 0.0:
-            sign_str = '\033[92m{}\033[00m'.format("-" + self.format_number(np.abs(number), min_length))
+            sign_str = '\033[91m{}\033[00m'.format("-" + self.format_number(np.abs(number), min_length))
         else:
             sign_str = '---'
         return  sign_str      
 
-    def update(self, epoch, values, values_epoch=None):
-        """
-        Updates the progress bar with current training information.
+    def update(self, values):   
+        self.remaining_steps -= 1   
+        for key, value in values.items():
+            self.dict[key].append(value) 
+            
+        if self.dict['Iteration'] == 1:
+            for key, value in values.items():
+                self.dict[key+' last ep'].append(value) 
+             
+        self.dict['Iteration'] += 1
+        
+        epoch = int(np.ceil(self.dict['Iteration'] / self.steps_per_epoch))
 
-        This method should be called within the training loop to update the progress bar's display.
-
-        Parameters:
-        epoch (int): The current epoch number.
-        values (list): A list of current values for the metrics being tracked at each iteration.
-        values_epoch (list, optional): A list of current values for the metrics being tracked after each epoch. Defaults to None.
-
-        The method calculates the average time per step, the estimated time of arrival (ETA), updates the 
-        progress metrics, and prints the progress bar.
-        """
-
-        toc = time.time()
-        values.append(toc)
-        self.remaining_steps -= int(1)
-
-        for i, key in enumerate(self.avg.keys()):
-            if len(self.avg[key]) >= self.avg_over_n_steps:
-                del self.avg[key][0]
-            self.avg[key].append(values[i])
-
-        avg_time = (self.avg['time'][-1] - self.avg['time'][0]) / (len(self.avg['time']) - 1)
-        self.dict['ETA'] = timedelta(seconds=int(self.remaining_steps * avg_time))        
+        if self.dict['Epoch'] < epoch:
+            for key in self.metrics:
+                self.dict[key+' last ep'].append(np.mean(self.dict[key][-self.steps_per_epoch:]))
+                self.dict[key+' impr'] = self.dict[key+' last ep'][-2] - self.dict[key+' last ep'][-1]
+            self.dict['Epoch'] = epoch
+     
+        self.dict['time'].append(time.time())
+  
+        avg_steps = np.min((self.dict['Iteration'], self.avg_over_n_steps))
+        avg_time = (self.dict['time'][-1] - self.dict['time'][-avg_steps-1]) / avg_steps 
+        
+        self.dict['ETA'] = timedelta(seconds=int(self.remaining_steps * avg_time))         
         self.dict['ms/Iteration'] = self.format_number(avg_time*1000.0, 4)
+        self.dict['Progress'] = self.format_number(100.0 * self.dict['Iteration'] / self.total_steps, 3)+'%'
 
-        if epoch - self.dict['Epoch'] > 0 and epoch > 2 and values_epoch != None:
-            self.impr = {key : values_epoch[j] - self.values_epoch_old[j]  for j, key in enumerate(self.metrics_batch)}
-        elif epoch - self.dict['Epoch'] == 0 and values_epoch != None:
-            self.values_epoch_old = values_epoch
-
-        self.dict['Epoch'] = epoch
-
-        if toc - self.tic > self.sleep_print:
-            metric_string = [f'\033[95m{key}\033[00m: {self.dict[key]}' for key in self.dict.keys()] 
-            if self.metrics_batch != None:
-                metric_string += [f'\033[96m{key}\033[00m: {self.format_number(values_epoch[j], 5)} ({self.ret_sign(self.impr[key], 4)})' for j, key in enumerate(self.metrics_batch) if values_epoch[j] != 0]
-            metric_string += [f'\033[33m{key}\033[00m: {self.format_number(np.mean(self.avg[key]), 5)}' for key in self.metrics_iter if np.mean(self.avg[key]) != 0]
-            metric_string = "\033[96m - \033[00m".join(metric_string)
+        if time.time() - self.tic > self.sleep_print:
+            metric_string =  [f'\033[95m{key}\033[00m: {self.dict[key]}' for key in self.time_metrics]       
+            metric_string += [f'\033[33m{key}\033[00m: {self.format_number(np.mean(self.dict[key][-avg_steps:]), 5)} ({self.ret_sign(self.dict[key+" impr"], 4)})' for key in self.metrics]               
+            metric_string =  "\033[96m - \033[00m".join(metric_string)
             print(f"\r{metric_string}.           ", end='', flush=True)   
-            self.tic = time.time()          
-
-        self.dict['Iteration'] += int(1)        
-        self.dict['Progress']  = self.format_number(100.0 * self.dict['Iteration'] / (self.epochs * self.steps), 3)+'%'
+            self.tic = time.time()   
