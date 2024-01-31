@@ -2,8 +2,11 @@
 
 ## Introduction
 `scSpecies` is a deep learning model designed to align network architectures for datasets across multiple species. 
-`scSpecies` can establish a direct correspondence between cells of multiple of single-cell RNA sequencing datasets. The model
- offers the following functionalities:
+The model builds on conditional variational autoencoder and transfer learning to
+establish a direct correspondence between cells of multiple of single-cell RNA sequencing datasets. 
+
+
+The model offers the following functionalities:
 
 - **Align and vizualize Latent Representaions:** Align latent representations of datasets from different species. The influence of experimental batch effects is corrected for in this representation.
 - **Transferring Cell Labels and Information:** Transfer labels and information between the datasets.
