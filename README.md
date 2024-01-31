@@ -5,7 +5,7 @@
 The model builds on conditional variational autoencoder and transfer learning to
 establish a direct correspondence between cells of multiple of single-cell RNA sequencing datasets. 
 
-![Architecture](/figures/scSpecies_model_architecture.pdf)
+![Architecture](/figures/scSpecies_model_architecture.jpeg)
 
 The model offers the following functionalities:
 
