@@ -5,6 +5,7 @@
 The model builds on conditional variational autoencoder and transfer learning to
 establish a direct correspondence between cells of multiple of single-cell RNA sequencing datasets. 
 
+![Architecture]("/figures/scSpecies_model_architecture.pdf)
 
 The model offers the following functionalities:
 
@@ -13,6 +14,8 @@ The model offers the following functionalities:
 - **Differential Gene Expression Analysis:** Aids in identifying differentially expressed genes among biologically similar cells across species.
 - **Aligned Cell Atlas Creation:** Assists in creating an aligned cell atlas that spans multiple species.
 - **Relevance Score Computation:** Computes and compares the relevance scores of genes between species, providing insights into their biological significance.
+
+![Atlas]("/figures/multiple_species.jpeg")
 
 ## Prerequisites
 
