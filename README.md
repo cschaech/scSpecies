@@ -13,7 +13,7 @@ The model offers the following functionalities:
 - **Transfer Cell Labels and Information:** After training cell labels or information like disease background can be transferred based on proximity of cells in the latent space.
 - **Differential Gene Expression Analysis:** Aids in identifying differentially expressed genes among biologically similar cells across species.
 - **Aligned Cell Atlas Creation:** Assists in creating an aligned cell atlas that spans multiple species.
-- **Relevance Score Computation:** Computes and compares the relevance scores of genes between cell types of different species, providing insights into similarities and differences for their biological significance.
+- **Relevance Score Computation:** Assigns and compares the relevance scores of genes between cell types of different species, providing insights into similarities and differences for their biological significance.
 
 ![Atlas](/figures/multiple_species.jpeg)
 
