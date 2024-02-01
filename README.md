@@ -1,19 +1,19 @@
 # scSpecies
 
 ## Introduction
-`scSpecies` is a deep learning model designed to align network architectures for datasets across multiple species. 
-The model builds on conditional variational autoencoder and transfer learning to
-establish a direct correspondence between cells of multiple of single-cell RNA sequencing datasets. 
+`scSpecies` is a deep learning model designed to align network architectures for single-cell RNA sequencing datasets across multiple species. 
+The model builds on conditional variational autoencoders and transfer learning to
+establish a direct correspondence between cells of multiple datasets. 
 
 ![Architecture](/figures/scSpecies_model_architecture.jpeg)
 
 The model offers the following functionalities:
 
-- **Align and vizualize Latent Representaions:** Align latent representations of datasets from different species. The influence of experimental batch effects is corrected for in this representation.
-- **Transferring Cell Labels and Information:** Transfer labels and information between the datasets.
+- **Align and vizualize Latent Representaions:** Align latent representations of datasets from different species. The influence of experimental batch effects is corrected for in the latent representation.
+- **Transfer Cell Labels and Information:** After training cell labels or information like disease background can be transferred based on proximity of cells in the latent space.
 - **Differential Gene Expression Analysis:** Aids in identifying differentially expressed genes among biologically similar cells across species.
 - **Aligned Cell Atlas Creation:** Assists in creating an aligned cell atlas that spans multiple species.
-- **Relevance Score Computation:** Computes and compares the relevance scores of genes between species, providing insights into their biological significance.
+- **Relevance Score Computation:** Computes and compares the relevance scores of genes between cell types of different species, providing insights into similarities and differences for their biological significance.
 
 ![Atlas](/figures/multiple_species.jpeg)
 
@@ -27,7 +27,7 @@ Follow these steps to set up your environment and start using `scSpecies`:
 
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/[your-username]/scSpecies.git
+   git clone https://github.com/cschaech/scSpecies.git
    cd scSpecies
 
 2. **Create and Activate a Virtual Environment:**
