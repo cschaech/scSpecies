@@ -116,7 +116,7 @@ def bar_plot(model, save_path=None, cell_key= 'cell_type_coarse', key='_aligned_
     context_and_target_labels = np.unique(np.concatenate((context_cell_types,target_cell_types)))
     palette = return_palette(np.concatenate((context_cell_types,target_cell_types)))
 
-    legend = fig.legend(handles=[mpatches.Patch(color=palette[cell], label=str(i+1)+': '+cell) for i,cell in enumerate(context_and_target_labels) if cell in context_cell_types], loc='lower center', bbox_to_anchor=(0.5, -0.07), fontsize=fs*0.8, ncol=4, columnspacing=0.1)
+    legend = fig.legend(handles=[mpatches.Patch(color=palette[cell], label=str(i+1)+': '+cell) for i,cell in enumerate(context_and_target_labels) if cell in context_cell_types], loc='lower center', bbox_to_anchor=(0.5, -0.1), fontsize=fs*0.8, ncol=4, columnspacing=0.1)
     legend.get_frame().set_linewidth(1)  
     legend.get_frame().set_edgecolor('black') 
 
@@ -264,7 +264,6 @@ def plot_umap_three_species(model_1, model_2, context_cell_key = 'cell_type_coar
     n_obs_2 = model_2.mdata.mod[model_2.target_dataset_key].n_obs   
     n_obs_pc = len(context_prototypes)
     n_obs_p1 = len(target_prototypes_1)
-    n_obs_p2 = len(target_prototypes_2)
 
     umap_c = umap_together.obsm['X_umap'][:n_obs_c]
     umap_1 = umap_together.obsm['X_umap'][n_obs_c:n_obs_c+n_obs_1]
@@ -306,9 +305,9 @@ def plot_umap_three_species(model_1, model_2, context_cell_key = 'cell_type_coar
     perm_1 = np.random.permutation(len(colors_1))
     perm_2 = np.random.permutation(len(colors_2))
 
-    ax_A.scatter(umap_together.obsm['X_umap'][:,0], umap_together.obsm['X_umap'][:,1], s=40000/len(colors_c), c='lightgray')
-    ax_B.scatter(umap_together.obsm['X_umap'][:,0], umap_together.obsm['X_umap'][:,1], s=40000/len(colors_1), c='lightgray')
-    ax_C.scatter(umap_together.obsm['X_umap'][:,0], umap_together.obsm['X_umap'][:,1], s=40000/len(colors_2), c='lightgray')
+    ax_A.scatter(umap_together.obsm['X_umap'][:,0], umap_together.obsm['X_umap'][:,1], s=50000/len(colors_c+colors_1+colors_2), c='lightgray')
+    ax_B.scatter(umap_together.obsm['X_umap'][:,0], umap_together.obsm['X_umap'][:,1], s=50000/len(colors_c+colors_1+colors_2), c='lightgray')
+    ax_C.scatter(umap_together.obsm['X_umap'][:,0], umap_together.obsm['X_umap'][:,1], s=50000/len(colors_c+colors_1+colors_2), c='lightgray')
 
     ax_A.scatter(umap_c[perm_c,0], umap_c[perm_c,1], s=40000/len(colors_c), c=np.array(colors_c)[perm_c])
     ax_B.scatter(umap_1[perm_1,0], umap_1[perm_1,1], s=40000/len(colors_1), c=np.array(colors_1)[perm_1])
@@ -386,7 +385,7 @@ def plot_umap(model, context_cell_key = 'cell_type_fine', target_cell_key = 'cel
 
     palette = return_palette(labels)
 
-    figsize=(12.225,6.5)
+    figsize=(12.225,6)
     dpi=250
     fig, (ax_A, ax_B) = plt.subplots(1, 2, figsize=figsize, constrained_layout=True, dpi=dpi, layout='constrained') 
 
