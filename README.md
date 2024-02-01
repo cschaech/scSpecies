@@ -19,7 +19,7 @@ The model offers the following functionalities:
 
 ## Prerequisites
 
-This project requires Python 3.9.16. Please ensure that you have this version installed on your system before proceeding with the setup.
+This repository requires Python 3.9.16. Please ensure that you have this version installed on your system before proceeding with the setup.
 
 ## Setting Up the Environment
 
@@ -34,13 +34,13 @@ Follow these steps to set up your environment and start using `scSpecies`:
    1. Using a virtual environment is recommended to avoid package conflicts.
       For Unix-based systems (Linux/macOS):
        ```bash
-      python3.9 -m venv venv
-      source venv/bin/activate
+      python3.9 -m venv scSpecies
+      source scSpecies/bin/activate
 
    2. For Windows:
       ```bash
-      python -m venv venv
-      .\venv\Scripts\activate
+      python -m venv scSpecies
+      .\scSpecies\Scripts\activate
 
 3. **Install Required Packages:**
    Install the dependencies listed in `requirements.txt`.
@@ -50,3 +50,6 @@ Follow these steps to set up your environment and start using `scSpecies`:
 ## Demo usage
 
 To get started with `scSpecies`, please refer to the `tutorial.ipynb` Jupyter notebook. This tutorial provides a comprehensive guide on how to use the tool, including data preparation, model training, and analysis.  
+
+## Content of this repository
+
