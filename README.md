@@ -47,6 +47,11 @@ Follow these steps to set up your environment and start using `scSpecies`:
    ```bash
    pip install -r requirements.txt
 
+4. **Install PyTorch with CUDA**
+   Using CUDA significantly speeds up computations; if CUDA 11.8 is set up, run
+   ```bash
+   pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
 ## Demo usage
 
 To get started with `scSpecies`, please refer to the `tutorial.ipynb` Jupyter notebook. This tutorial provides a comprehensive guide on how to use the tool, including data preparation, model training, and analysis.  
