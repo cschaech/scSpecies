@@ -45,7 +45,7 @@ Follow these steps to set up your environment and start using `scSpecies`:
 3. **Install Required Packages:**
    Install the dependencies listed in `requirements.txt`.
    ```bash
-   pip install -r requirements.txt
+   pip3 install -r requirements.txt
 
 4. **Install PyTorch with CUDA:**
    Using CUDA significantly speeds up computations; if CUDA 11.8 is set up, run
