@@ -25,7 +25,7 @@ This repository requires Python 3.9 [(Download here)](https://www.python.org/dow
 
 Follow these steps to set up your environment and start using `scSpecies`:
 
-1. **Clone the Repository:**
+1. **Clone the Repository:** Open your desired folder and run
    ```bash
    git clone https://github.com/cschaech/scSpecies.git
    cd scSpecies
