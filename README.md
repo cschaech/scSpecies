@@ -19,7 +19,7 @@ The model offers the following functionalities:
 
 ## Prerequisites
 
-This repository requires Python 3.9.16. [(Download here)](https://www.python.org/downloads/). Please ensure that you have this version installed on your system before proceeding with the setup.
+This repository requires Python 3.9 [(Download here)](https://www.python.org/downloads/). Please ensure that you have this version installed on your system before proceeding with the setup. We used version 3.9.16.
 
 ## Setting Up the Environment
 
