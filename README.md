@@ -9,7 +9,7 @@ establish a direct correspondence between cells of multiple datasets.
 
 The model offers the following functionalities:
 
-- **Align and vizualize Latent Representaions:** Align latent representations of datasets from different species. The influence of experimental batch effects is corrected for in the latent representation.
+- **Align and vizualize Latent Representaions:** The model aligns latent representations of datasets from different species. The influence of experimental batch effects is corrected for in the latent representation.
 - **Transfer Cell Labels and Information:** After training cell labels or information like disease background can be transferred based on proximity of cells in the latent space.
 - **Differential Gene Expression Analysis:** Aids in identifying differentially expressed genes among biologically similar cells across species.
 - **Aligned Cell Atlas Creation:** Assists in creating an aligned cell atlas that spans multiple species.
