@@ -19,7 +19,7 @@ The model offers the following functionalities:
 
 ## Prerequisites
 
-This repository requires Python 3.9.16. Please ensure that you have this version installed on your system before proceeding with the setup.
+This repository requires Python 3.9.16. [(Download here)](https://www.python.org/downloads/) Please ensure that you have this version installed on your system before proceeding with the setup.
 
 ## Setting Up the Environment
 
@@ -39,7 +39,7 @@ Follow these steps to set up your environment and start using `scSpecies`:
 
    2. For Windows:
       ```bash
-      python -m venv scSpecies
+      python3.9 -m venv scSpecies
       .\scSpecies\Scripts\activate
 
 3. **Install Required Packages:**
