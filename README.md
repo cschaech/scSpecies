@@ -34,12 +34,12 @@ Follow these steps to set up your environment and start using `scSpecies`:
    1. Using a virtual environment is recommended to avoid package conflicts.
       For Unix-based systems (Linux/macOS):
        ```bash
-      python3.9 -m venv scSpecies
+      python3 -m venv scSpecies
       source scSpecies/bin/activate
 
    2. For Windows:
       ```bash
-      python3.9 -m venv scSpecies
+      python3 -m venv scSpecies
       .\scSpecies\Scripts\activate
 
 3. **Install Required Packages:**
